@@ -12,7 +12,10 @@ export default {
             default: 300
         },
         mode: {
-            required: true
+            default: 'offline'
+        },
+        socket: {
+            default: null
         }
     },
     data() {
@@ -43,7 +46,10 @@ export default {
                 black: "#000000",
                 white: "#ffffff"
             },
-            buffer: ""
+            //Online Variables
+            //Drawer
+            buffer: [],
+
         };
     },
     mounted() {
@@ -53,6 +59,71 @@ export default {
         this.subscription();
     },
     methods: {
+        subscription(){
+            if(this.mode === 'watch'){
+                this.socket.on("getImageState", ((data) => {
+                    this.history = data.history;
+                    this.context.clearRect(0,0,this.width, this.height);
+                    for(stroke in data.history)
+                        this._redraw(stroke);
+                }).bind(this));
+
+                this.socket.on("strokes", ((strokes) => {
+                    strokes.forEach(stroke => {
+                        this.history.push(stroke);
+                        this._redraw(stroke);
+                    } )
+                    
+                }).bind(this));
+
+                this.socket.on("clearDrawing", (() => {
+                    this.clear();
+                }).bind(this))
+
+                this.socket.on("redraw", ((lastHistory) => {
+                    this.lastStrokeHistory = [0];
+                    for(let i = 0; i < lastHistory.length; i++) {
+                        this.lastStrokeHistory.push(lastHistory[i]);
+                    }
+                    this.redraw();
+                }).bind(this))
+            }
+            else if(this.mode === 'drawer') {
+
+                this.socket.on("getImageState", (() => {
+                    this.socket.emit("imageState", this.history);
+                }).bind(this))
+
+                setInterval(this.dispatcher, 20);
+            }
+        },
+        dispatcher() {
+            if(this.buffer) {
+                const temp = this.buffer.map((x) => x);
+                for(let i = 0; i < temp.length; i++) {
+                    switch(temp[i].action){
+                        case 'strokes': 
+                            let strokes = [];
+                            strokes.push(temp[i].stroke);
+                            while(temp[i+1] && temp[i+1].action === 'strokes') {
+                                strokes.push(temp[++i].stroke);
+                            }
+                            this.socket.emit('strokes', strokes);
+                            console.log(strokes);
+                            break;
+                        case 'clear':
+                            this.socket.emit('clearDrawing');
+                            break;
+                        case 'redraw':
+                            this.socket.emit('redraw', temp[i].lastHistory);
+                            break;
+                        default:
+                            console.log('azione non riconosciuta :(');
+                    }
+                }
+                this.buffer.splice(0, temp.length);
+            }
+        },
         newStroke(eventPoint) {
             return {
                 operation: this.context.globalCompositeOperation,
@@ -143,6 +214,10 @@ export default {
         redraw() {
             //Funzione per il tasto "indietro", ridisegna i tratti tranne l'ultimo
             if (this.lastStrokeHistory.length < 2) return;
+            if(this.mode === 'drawer'){
+                this.buffer.push({action: 'redraw', lastHistory: [...this.lastStrokeHistory]});
+
+            }
             let index = this.lastStrokeHistory[
                 this.lastStrokeHistory.length - 2
             ];
@@ -174,9 +249,13 @@ export default {
                 this.context.stroke();
                 [this.point.x, this.point.y] = [stroke.to.x, stroke.to.y];
                 this.history.push(stroke);
+                if(this.mode === 'drawer')
+                    this.buffer.push({action: 'strokes', stroke: stroke});
             }
         },
         clear() {
+            if(this.mode === 'drawer')
+                this.buffer.push({action: 'clear'});
             this.context.clearRect(0, 0, this.width, this.height);
             this.lastStrokeHistory = [0];
             this.history = [];
