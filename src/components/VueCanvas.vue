@@ -14,9 +14,7 @@ export default {
         mode: {
             default: 'offline'
         },
-        socket: {
-            default: null
-        }
+        socket: ''
     },
     data() {
         return {
@@ -89,7 +87,6 @@ export default {
                 }).bind(this))
             }
             else if(this.mode === 'drawer') {
-
                 this.socket.on("getImageState", (() => {
                     this.socket.emit("imageState", this.history);
                 }).bind(this))

@@ -5,7 +5,7 @@
         </div>
         <div class="canvas-col">
             <div class="canvas-container">
-                <VueCanvas ref="canvas" width="400" height="400" :key="canvasMode" :mode="canvasMode" :socket="socket"/>
+                <VueCanvas v-if="canvasMode == 'offline' || socket" ref="canvas" width="400" height="400" :key="canvasMode" :mode="canvasMode" :socket="socket"/>
             </div>
             <button v-if= "canvasMode == 'drawer'" @click="undo()">UNDO</button>
             <button v-if= "canvasMode =='drawer'" @click="clear()">CLEAR</button>
@@ -23,12 +23,12 @@ export default {
     },
     data() {
         return {
-            socket: null,
-            canvasMode: "drawer"
+            canvasMode: "drawer",
+            socket: ''
         };
     },
     mounted() {
-        this.socket = io("http://localhost:4000?room=2312");
+      this.socket = io("http://localhost:4000?room=2344");
     },
     methods: {
         changeMode() {
