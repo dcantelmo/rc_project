@@ -1,9 +1,5 @@
-<template>
-    <canvas :style="{cursor: selectedCursor}" ref="v-canvas" :width="width" :height="height"></canvas>
-</template>
-
-<script>
-export default {
+Vue.component('Vuecanvas', {
+    template: `<canvas :style="{cursor: selectedCursor}" ref="v-canvas" :width="width" :height="height"></canvas>`,
     props: {
         width: {
             default: 300
@@ -51,18 +47,19 @@ export default {
         };
     },
     mounted() {
+        console.log()
         this.setCanvas();
         if (this.mode === "drawer" || this.mode === "offline")
             this.bindEvents();
         this.subscription();
     },
     methods: {
-        subscription(){
-            if(this.mode === 'watch'){
+        subscription() {
+            if (this.mode === 'watch') {
                 this.socket.on("getImageState", ((data) => {
                     this.history = data.history;
-                    this.context.clearRect(0,0,this.width, this.height);
-                    for(stroke in data.history)
+                    this.context.clearRect(0, 0, this.width, this.height);
+                    for (stroke in data.history)
                         this._redraw(stroke);
                 }).bind(this));
 
@@ -70,8 +67,8 @@ export default {
                     strokes.forEach(stroke => {
                         this.history.push(stroke);
                         this._redraw(stroke);
-                    } )
-                    
+                    })
+
                 }).bind(this));
 
                 this.socket.on("clearDrawing", (() => {
@@ -80,13 +77,13 @@ export default {
 
                 this.socket.on("redraw", ((lastHistory) => {
                     this.lastStrokeHistory = [0];
-                    for(let i = 0; i < lastHistory.length; i++) {
+                    for (let i = 0; i < lastHistory.length; i++) {
                         this.lastStrokeHistory.push(lastHistory[i]);
                     }
                     this.redraw();
                 }).bind(this))
             }
-            else if(this.mode === 'drawer') {
+            else if (this.mode === 'drawer') {
                 this.socket.on("getImageState", (() => {
                     this.socket.emit("imageState", this.history);
                 }).bind(this))
@@ -95,14 +92,14 @@ export default {
             }
         },
         dispatcher() {
-            if(this.buffer) {
+            if (this.buffer) {
                 const temp = this.buffer.map((x) => x);
-                for(let i = 0; i < temp.length; i++) {
-                    switch(temp[i].action){
-                        case 'strokes': 
+                for (let i = 0; i < temp.length; i++) {
+                    switch (temp[i].action) {
+                        case 'strokes':
                             let strokes = [];
                             strokes.push(temp[i].stroke);
-                            while(temp[i+1] && temp[i+1].action === 'strokes') {
+                            while (temp[i + 1] && temp[i + 1].action === 'strokes') {
                                 strokes.push(temp[++i].stroke);
                             }
                             this.socket.emit('strokes', strokes);
@@ -211,8 +208,8 @@ export default {
         redraw() {
             //Funzione per il tasto "indietro", ridisegna i tratti tranne l'ultimo
             if (this.lastStrokeHistory.length < 2) return;
-            if(this.mode === 'drawer'){
-                this.buffer.push({action: 'redraw', lastHistory: [...this.lastStrokeHistory]});
+            if (this.mode === 'drawer') {
+                this.buffer.push({ action: 'redraw', lastHistory: [...this.lastStrokeHistory] });
 
             }
             let index = this.lastStrokeHistory[
@@ -246,13 +243,13 @@ export default {
                 this.context.stroke();
                 [this.point.x, this.point.y] = [stroke.to.x, stroke.to.y];
                 this.history.push(stroke);
-                if(this.mode === 'drawer')
-                    this.buffer.push({action: 'strokes', stroke: stroke});
+                if (this.mode === 'drawer')
+                    this.buffer.push({ action: 'strokes', stroke: stroke });
             }
         },
         clear() {
-            if(this.mode === 'drawer')
-                this.buffer.push({action: 'clear'});
+            if (this.mode === 'drawer')
+                this.buffer.push({ action: 'clear' });
             this.context.clearRect(0, 0, this.width, this.height);
             this.lastStrokeHistory = [0];
             this.history = [];
@@ -279,11 +276,11 @@ export default {
             //Cursore dinamico
             return `url("data:image/svg+xml,%3Csvg width='32' height='32' xmlns='http://www.w3.org/2000/svg'%3E%3Cg%3E%3Cellipse opacity='${
                 this.isDrawing ? "1" : "0.3"
-            }' stroke='%23000' ry='15' rx='15' id='svg_2' cy='16' cx='16' stroke-opacity='null' stroke-width='2' fill='none'/%3E%3Cellipse ry='${this
-                .lineWidth / 2}' rx='${this.lineWidth /
-                2}' id='svg_3' cy='16' cx='16' opacity='${
+                }' stroke='%23000' ry='15' rx='15' id='svg_2' cy='16' cx='16' stroke-opacity='null' stroke-width='2' fill='none'/%3E%3Cellipse ry='${this
+                    .lineWidth / 2}' rx='${this.lineWidth /
+                    2}' id='svg_3' cy='16' cx='16' opacity='${
                 this.isDrawing ? "1" : "0.3"
-            }' stroke-width='1.5' stroke='%23000' fill='none'/%3E%3C/g%3E%3C/svg%3E") 16 16, pointer`;
+                }' stroke-width='1.5' stroke='%23000' fill='none'/%3E%3C/g%3E%3C/svg%3E") 16 16, pointer`;
         },
         fillSelector() {
             if (this.currentOperation == "source-over")
@@ -291,8 +288,26 @@ export default {
             else return "none";
         }
     }
-};
-</script>
+})
 
-<style>
-</style>
+
+
+var app = new Vue({
+    el: '#app',
+    data: {
+        socket: '',
+        canvasMode: 'drawer',
+    },
+    beforeMount: function () {
+        this.room = this.$el.attributes['room'].value
+        this.socket = io('http://localhost:8888');
+    },
+    methods: {
+        change() {
+            if (this.canvasMode == 'drawer')
+                this.canvasMode = 'watch'
+            else
+                this.canvasMode = 'drawer';
+        }
+    }
+})
